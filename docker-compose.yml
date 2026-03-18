@@ -12,20 +12,6 @@ services:
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user -d codereview"]version: "3.9"
-
-services:
-  db:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: codereview
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-    healthcheck:
       test: ["CMD-SHELL", "pg_isready -U user -d codereview"]
       interval: 5s
       timeout: 5s
@@ -41,23 +27,8 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql://user:password@db:5432/codereview
-
-volumes:
-  pgdata:
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  backend:
-    build: ./backend
-    env_file: ./backend/.env
-    ports:
-      - "8000:8000"
-    depends_on:
-      db:
-        condition: service_healthy
-    environment:
-      DATABASE_URL: postgresql://user:password@db:5432/codereview
+    volumes:
+      - ./backend:/app
 
 volumes:
   pgdata:

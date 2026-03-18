@@ -79,7 +79,7 @@ def safe_parse_json(raw: str) -> dict:
 async def review_chunk(chunk: str, chunk_index: int, total_chunks: int) -> dict:
     """Send one chunk to Groq and return a parsed report dict."""
     response = await client.chat.completions.create(
-        model="llama3-70b-8192",
+        model="llama-3.3-70b-versatile",
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": build_user_message(chunk, chunk_index, total_chunks)},
