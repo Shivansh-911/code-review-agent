@@ -1,0 +1,85 @@
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+
+body {
+  background: #07080a;
+  color: #e2e4ec;
+  font-family: 'DM Sans', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar       { width: 5px; }
+::-webkit-scrollbar-track { background: #0d0f12; }
+::-webkit-scrollbar-thumb { background: #2a2d38; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #6db82a; }
+::selection { background: rgba(168,255,62,0.2); color: #a8ff3e; }
+
+textarea { resize: none !important; font-family: 'JetBrains Mono', monospace !important; }
+textarea:focus, input:focus { outline: none; }
+
+/* Animated grid background */
+.bg-grid-anim {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(74,222,128,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(74,222,128,0.04) 1px, transparent 1px);
+  background-size: 48px 48px;
+  animation: gridScroll 14s linear infinite;
+}
+.bg-grid-anim::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 70% 50% at 50% 0%, rgba(74,222,128,0.06) 0%, transparent 70%),
+    radial-gradient(ellipse 50% 40% at 90% 100%, rgba(56,189,248,0.04) 0%, transparent 60%);
+}
+
+/* Floating orbs */
+.orb { position: fixed; border-radius: 50%; pointer-events: none; z-index: 0; filter: blur(80px); }
+.orb-green { width: 480px; height: 480px; background: rgba(74,222,128,0.05); top: -120px; left: -120px; animation: orbPulse 9s ease-in-out infinite; }
+.orb-blue  { width: 360px; height: 360px; background: rgba(56,189,248,0.04); bottom: -80px; right: -80px; animation: orbPulse2 11s ease-in-out infinite; }
+
+/* Shimmer skeleton */
+.shimmer-box {
+  background: linear-gradient(90deg, #13151a 25%, #1a1d24 50%, #13151a 75%);
+  background-size: 400px 100%;
+  animation: shimmer 1.6s infinite linear;
+}
+
+/* Cursor blink */
+.cursor-blink::after {
+  content: '▋';
+  color: #4ade80;
+  animation: blink 1s step-end infinite;
+  margin-left: 2px;
+  font-size: 0.85em;
+}
+
+/* Animation delays */
+.delay-75  { animation-delay: 75ms; }
+.delay-150 { animation-delay: 150ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-300 { animation-delay: 300ms; }
+.delay-400 { animation-delay: 400ms; }
+.delay-500 { animation-delay: 500ms; }
+
+/* Keyframes */
+@keyframes gridScroll { 0%{background-position:0 0} 100%{background-position:48px 48px} }
+@keyframes orbPulse   { 0%,100%{transform:scale(1) translate(0,0)} 50%{transform:scale(1.15) translate(20px,-20px)} }
+@keyframes orbPulse2  { 0%,100%{transform:scale(1) translate(0,0)} 50%{transform:scale(1.1) translate(-15px,15px)} }
+@keyframes blink      { 0%,100%{opacity:1} 50%{opacity:0} }
+@keyframes shimmer    { 0%{background-position:-400px 0} 100%{background-position:400px 0} }
+@keyframes fadeUp     { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+@keyframes gridDrift  { 0%{background-position:0 0,0 0} 100%{background-position:48px 48px,48px 48px} }
