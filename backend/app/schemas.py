@@ -1,13 +1,24 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, model_validator
 
 class UserRegister(BaseModel):
     email: EmailStr
     username: str
     password: str
+    confirm_password: str
+
+    @model_validator(mode="after")
+    def passwords_match(self):
+        if self.password != self.confirm_password:
+            raise ValueError("Passwords do not match")
+        return self
 
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+
+class RegisterResponse(BaseModel):
+    message: str
+    email: str
 
 class TokenResponse(BaseModel):
     access_token: str
@@ -15,10 +26,10 @@ class TokenResponse(BaseModel):
 
 class ReviewRequest(BaseModel):
     code: str
-    language: str = "auto"  # hint, not enforced
+    language: str = "auto"
 
 class Issue(BaseModel):
-    severity: str        # critical | warning | suggestion
+    severity: str
     type: str
     line_hint: str
     description: str

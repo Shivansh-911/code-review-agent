@@ -3,14 +3,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.database import get_db
 from app.models import User
-from app.schemas import UserRegister, UserLogin, TokenResponse
+from app.schemas import UserRegister, UserLogin, TokenResponse, RegisterResponse
 from app.auth import hash_password, verify_password, create_access_token
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-@router.post("/register", response_model=TokenResponse, status_code=201)
+@router.post("/register", response_model=RegisterResponse, status_code=201)
 async def register(payload: UserRegister, db: AsyncSession = Depends(get_db)):
-    # Check duplicates
     existing = await db.execute(
         select(User).where((User.email == payload.email) | (User.username == payload.username))
     )
@@ -26,8 +25,8 @@ async def register(payload: UserRegister, db: AsyncSession = Depends(get_db)):
     await db.commit()
     await db.refresh(user)
 
-    token = create_access_token({"sub": str(user.id)})
-    return TokenResponse(access_token=token)
+    # No token returned — user must log in explicitly
+    return RegisterResponse(message="Account created successfully", email=user.email)
 
 @router.post("/login", response_model=TokenResponse)
 async def login(payload: UserLogin, db: AsyncSession = Depends(get_db)):
