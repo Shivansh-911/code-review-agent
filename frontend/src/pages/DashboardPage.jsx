@@ -1,15 +1,16 @@
 import { useRef, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Play, RotateCcw, Code2, Terminal,
-  Zap, AlertTriangle, Lightbulb, CheckCircle2,
-  ChevronRight, FileCode
+  Play, RotateCcw, Code2, Terminal, Zap,
+  AlertTriangle, Lightbulb, CheckCircle2,
+  ChevronRight, FileCode, LogOut, Cpu, Loader2
 } from "lucide-react";
 import useAuthStore from "../store/authStore";
 import { useReviewSocket } from "../hooks/useReviewSocket";
-import { Navbar } from "../components/Navbar";
 import { ChunkCard } from "../components/ChunkCard";
 import { ReviewingSkeleton } from "../components/ReviewingSkeleton";
+import { useToast } from "../components/Toast";
 
 const SAMPLE = `import os
 import requests
@@ -39,8 +40,10 @@ def run_command(user_input):
     os.system(user_input)`;
 
 export const DashboardPage = () => {
-  const { token } = useAuthStore();
+  const { token, user, logout } = useAuthStore();
+  const navigate = useNavigate();
   const { status, chunks, totalChunks, errorMsg, startReview, reset } = useReviewSocket();
+  const toast = useToast();
   const [code, setCode] = useState("");
   const resultsRef = useRef(null);
   const bottomRef  = useRef(null);
@@ -49,142 +52,167 @@ export const DashboardPage = () => {
   const isDone      = status === "done";
   const hasResults  = chunks.length > 0;
 
-  // Auto-scroll to results when first chunk arrives
   useEffect(() => {
     if (chunks.length === 1 && resultsRef.current) {
       resultsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   }, [chunks.length]);
 
-  // Auto-scroll to bottom as new chunks stream in
   useEffect(() => {
     if (isReviewing && chunks.length > 0 && bottomRef.current) {
       bottomRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
     }
   }, [chunks.length, isReviewing]);
 
-  const handleReview = () => {
-    if (!code.trim()) return;
-    startReview(code, token);
+  const handleReview = () => { if (code.trim()) startReview(code, token); };
+
+  const handleReset = () => {
+    reset();
+    setCode("");
+    toast("Review cleared.", "info", 2000);
   };
 
-  const handleReset = () => { reset(); setCode(""); };
+  const handleLogout = () => {
+    toast("Signing out...", "info", 1500);
+    setTimeout(() => { logout(); navigate("/login"); }, 1500);
+  };
 
   const stats = chunks.reduce(
-    (acc, c) => {
-      c.issues.forEach((i) => { acc[i.severity] = (acc[i.severity] || 0) + 1; acc.total++; });
-      return acc;
-    },
+    (acc, c) => { c.issues.forEach((i) => { acc[i.severity] = (acc[i.severity] || 0) + 1; acc.total++; }); return acc; },
     { critical: 0, warning: 0, suggestion: 0, total: 0 }
   );
 
   const lineCount = code.split("\n").length;
 
+  const bannerCls = stats.critical > 0
+    ? "bg-red-500/10 border border-red-500/20 text-red-400"
+    : stats.warning > 0
+    ? "bg-yellow-400/10 border border-yellow-400/20 text-yellow-400"
+    : "bg-green-400/10 border border-green-400/20 text-green-400";
+
   return (
-    <div className="min-h-screen flex flex-col relative">
-      {/* Animated background */}
+    <div className="min-h-screen flex flex-col bg-zinc-950 relative">
       <div className="bg-grid-anim" />
       <div className="orb orb-green" />
       <div className="orb orb-blue" />
 
-      <Navbar
-        hasResults={hasResults}
-        onScrollToResults={() => resultsRef.current?.scrollIntoView({ behavior: "smooth" })}
-      />
+      {/* Navbar */}
+      <motion.nav
+        initial={{ opacity: 0, y: -16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: [0.22, 0.68, 0, 1.2] }}
+        className="sticky top-0 z-50 border-b border-white/5 bg-zinc-950/85 backdrop-blur-xl"
+      >
+        <div className="px-6 h-14 flex items-center justify-between">
+          {/* Logo */}
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-green-400/10 border border-green-400/20 flex items-center justify-center shadow-[0_0_12px_rgba(74,222,128,0.15)]">
+              <Terminal size={15} className="text-green-400" />
+            </div>
+            <span className="font-display font-extrabold text-lg text-white tracking-tight">
+              Code<span className="text-green-400">Scan</span>
+            </span>
+          </div>
 
-      {/* Main centered container */}
-      <main className="relative z-10 flex-1 max-w-5xl mx-auto w-full px-6 py-10 space-y-8">
+          {/* Model badge */}
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-400/10 border border-green-400/20">
+            <Cpu size={11} className="text-green-400" />
+            <span className="text-xs font-mono text-green-400">llama-3.3-70b</span>
+          </div>
 
-        {/* === HERO HEADING === */}
+          {/* User + logout */}
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-mono text-zinc-600 hidden sm:block">
+              {user?.username || user?.email}
+            </span>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono text-zinc-500 hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 transition-all duration-150"
+            >
+              <LogOut size={12} /> Logout
+            </button>
+          </div>
+        </div>
+      </motion.nav>
+
+      {/* Two-column layout */}
+      <main className="flex-1 grid grid-cols-2 relative z-10 overflow-hidden">
+
+        {/* LEFT — Editor */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5, ease: [0.22, 0.68, 0, 1.2] }}
-          className="text-center"
+          className="flex flex-col border-r border-white/5"
+          style={{ height: "calc(100vh - 56px)", position: "sticky", top: 56 }}
         >
-          <h2 className="font-display font-extrabold text-3xl text-white tracking-tight mb-2">
-            Paste. Review. <span className="text-green-400">Fix.</span>
-          </h2>
-          <p className="text-zinc-500 font-mono text-sm">
-            Paste any code snippet and get an AI-powered security & quality review in seconds.
-          </p>
-        </motion.div>
-
-        {/* === CODE INPUT PANEL === */}
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.1, ease: [0.22, 0.68, 0, 1.2] }}
-          className="bg-zinc-950/90 backdrop-blur-xl border border-white/6 rounded-2xl overflow-hidden shadow-2xl shadow-black/50"
-        >
-          {/* Panel header */}
-          <div className="flex items-center justify-between px-5 py-3.5 bg-zinc-900/70 border-b border-white/5">
+          {/* Editor top bar */}
+          <div className="flex items-center justify-between px-5 py-3 bg-zinc-900/80 border-b border-white/5 shrink-0">
             <div className="flex items-center gap-3">
-              {/* Traffic lights */}
               <div className="flex gap-1.5">
                 <div className="w-3 h-3 rounded-full bg-red-500/70" />
                 <div className="w-3 h-3 rounded-full bg-yellow-400/70" />
                 <div className="w-3 h-3 rounded-full bg-green-400/70" />
               </div>
               <div className="flex items-center gap-2">
-                <Code2 size={13} className="text-zinc-500" />
-                <span className="text-xs font-mono text-zinc-500">paste_code_here</span>
+                <Code2 size={12} className="text-zinc-600" />
+                <span className="text-xs font-mono text-zinc-600">paste_code_here.py</span>
               </div>
             </div>
             <button
               onClick={() => setCode(SAMPLE)}
-              className="flex items-center gap-1 text-xs font-mono text-zinc-600 hover:text-green-400 transition-colors duration-150"
+              className="flex items-center gap-1 text-xs font-mono text-zinc-700 hover:text-green-400 transition-colors duration-150"
             >
               <ChevronRight size={11} />load sample
             </button>
           </div>
 
-          {/* Editor with line numbers */}
-          <div className="flex" style={{ height: 380 }}>
+          {/* Editor */}
+          <div className="flex flex-1 overflow-hidden">
             {/* Line numbers */}
-            <div className="select-none w-12 py-3 flex flex-col items-end pr-3 bg-zinc-900/30 border-r border-white/4 overflow-hidden shrink-0">
-              {Array.from({ length: Math.max(lineCount, 18) }).map((_, i) => (
-                <span key={i} className="text-xs font-mono text-zinc-700 leading-6">{i + 1}</span>
+            <div className="select-none w-11 shrink-0 bg-zinc-900/30 border-r border-white/5 py-3 flex flex-col items-end pr-2.5 overflow-hidden">
+              {Array.from({ length: Math.max(lineCount, 30) }).map((_, i) => (
+                <span key={i} className="text-xs font-mono text-zinc-800 leading-6 block">{i + 1}</span>
               ))}
             </div>
             <textarea
               value={code}
               onChange={(e) => setCode(e.target.value)}
-              placeholder={"// Paste your code here...\n// Supports any language — Python, JS, Go, Java, etc."}
-              className="flex-1 bg-transparent text-sm text-zinc-300 placeholder-zinc-700 p-3 leading-6 overflow-auto focus:outline-none"
-              spellCheck={false}
+              placeholder={"// Paste your code here...\n// Python, JS, Go, Java, Rust — any language"}
               disabled={isReviewing}
+              spellCheck={false}
+              className="flex-1 bg-zinc-950/50 text-zinc-300 text-sm leading-6 p-3 overflow-auto placeholder-zinc-800 caret-green-400 disabled:opacity-60"
             />
           </div>
 
           {/* Status bar */}
-          <div className="flex items-center justify-between px-5 py-2.5 bg-zinc-900/40 border-t border-white/4">
+          <div className="flex items-center justify-between px-5 py-2.5 bg-zinc-900/80 border-t border-white/5 shrink-0">
             <div className="flex items-center gap-4">
-              <span className="text-xs font-mono text-zinc-600">{lineCount} lines</span>
-              <span className="text-xs font-mono text-zinc-600">{code.length} chars</span>
-              {code.length > 0 && <span className="text-xs font-mono text-zinc-600">UTF-8</span>}
+              <span className="text-xs font-mono text-zinc-700">{lineCount} lines</span>
+              <span className="text-xs font-mono text-zinc-700">{code.length} chars</span>
+              <span className="text-xs font-mono text-zinc-700">UTF-8</span>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5">
               {(hasResults || status === "error") && (
                 <motion.button
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={handleReset}
-                  className="flex items-center gap-1.5 text-xs font-mono text-zinc-500 hover:text-white hover:bg-zinc-800 border border-zinc-700 hover:border-zinc-600 px-3 py-1.5 rounded-lg transition-all duration-150"
+                  className="flex items-center gap-1.5 text-xs font-mono text-zinc-500 hover:text-zinc-200 border border-white/10 hover:border-white/20 hover:bg-zinc-800/50 px-3 py-1.5 rounded-lg transition-all duration-150"
                 >
-                  <RotateCcw size={11} />Reset
+                  <RotateCcw size={11} /> Reset
                 </motion.button>
               )}
               <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.97 }}
+                whileHover={!isReviewing && code.trim() ? { scale: 1.04 } : {}}
+                whileTap={!isReviewing && code.trim() ? { scale: 0.96 } : {}}
                 onClick={handleReview}
                 disabled={isReviewing || !code.trim()}
-                className="flex items-center gap-2 bg-green-400 text-zinc-950 font-display font-bold text-sm px-5 py-2 rounded-xl hover:bg-green-300 transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed shadow-[0_0_16px_rgba(74,222,128,0.25)] hover:shadow-[0_0_24px_rgba(74,222,128,0.4)]"
+                className="flex items-center gap-2 bg-green-400 text-zinc-950 font-display font-bold text-sm px-5 py-2 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed hover:bg-green-300 transition-colors duration-150 shadow-[0_0_16px_rgba(74,222,128,0.25)]"
               >
                 {isReviewing
-                  ? <><div className="w-3.5 h-3.5 border-2 border-zinc-900/30 border-t-zinc-900 rounded-full animate-spin" />Analyzing...</>
+                  ? <><Loader2 size={13} className="animate-spin" />Analyzing...</>
                   : <><Play size={13} fill="currentColor" />Run Review</>
                 }
               </motion.button>
@@ -192,144 +220,143 @@ export const DashboardPage = () => {
           </div>
         </motion.div>
 
-        {/* === RESULTS PANEL === */}
-        <AnimatePresence>
-          {(isReviewing || hasResults || status === "error") && (
-            <motion.div
-              ref={resultsRef}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.45, ease: [0.22, 0.68, 0, 1.2] }}
-              className="space-y-5"
-            >
-              {/* Results heading */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <Terminal size={16} className="text-green-400" />
-                  <h3 className="font-display font-bold text-lg text-white">
-                    Review Results
-                  </h3>
-                  {isDone && (
-                    <motion.span
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      className="text-xs font-mono text-green-400 bg-green-400/10 border border-green-400/20 px-2.5 py-1 rounded-lg"
-                    >
-                      Complete
-                    </motion.span>
-                  )}
-                  {isReviewing && (
-                    <span className="text-xs font-mono text-yellow-400 bg-yellow-400/10 border border-yellow-400/20 px-2.5 py-1 rounded-lg animate-pulse2">
-                      Streaming...
-                    </span>
-                  )}
-                </div>
-
-                {/* Aggregate stats */}
-                {isDone && stats.total > 0 && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="flex items-center gap-2"
-                  >
-                    {stats.critical > 0 && (
-                      <span className="flex items-center gap-1 text-xs font-mono text-red-400 bg-red-500/10 border border-red-500/20 px-2.5 py-1 rounded-lg">
-                        <Zap size={10} fill="currentColor" />{stats.critical}
-                      </span>
-                    )}
-                    {stats.warning > 0 && (
-                      <span className="flex items-center gap-1 text-xs font-mono text-yellow-400 bg-yellow-400/10 border border-yellow-400/20 px-2.5 py-1 rounded-lg">
-                        <AlertTriangle size={10} />{stats.warning}
-                      </span>
-                    )}
-                    {stats.suggestion > 0 && (
-                      <span className="flex items-center gap-1 text-xs font-mono text-sky-400 bg-sky-400/10 border border-sky-400/20 px-2.5 py-1 rounded-lg">
-                        <Lightbulb size={10} />{stats.suggestion}
-                      </span>
-                    )}
-                  </motion.div>
-                )}
-              </div>
-
-              {/* Completion banner */}
+        {/* RIGHT — Results */}
+        <motion.div
+          ref={resultsRef}
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.5, delay: 0.08, ease: [0.22, 0.68, 0, 1.2] }}
+          className="flex flex-col overflow-y-auto bg-zinc-950/50"
+          style={{ height: "calc(100vh - 56px)" }}
+        >
+          {/* Results header — sticky within column */}
+          <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-3 bg-zinc-950/90 backdrop-blur border-b border-white/5 shrink-0">
+            <div className="flex items-center gap-2.5">
+              <Terminal size={14} className="text-green-400" />
+              <span className="font-display font-semibold text-sm text-zinc-100">Review Results</span>
               <AnimatePresence>
                 {isDone && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-sm font-mono ${
-                      stats.critical > 0
-                        ? "bg-red-500/8 border-red-500/20 text-red-400"
-                        : stats.warning > 0
-                        ? "bg-yellow-400/8 border-yellow-400/20 text-yellow-400"
-                        : "bg-green-400/8 border-green-400/20 text-green-400"
-                    }`}
+                  <motion.span
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="text-xs font-mono text-green-400 bg-green-400/10 border border-green-400/20 px-2 py-0.5 rounded"
                   >
-                    <CheckCircle2 size={15} />
-                    Review complete ·{" "}
-                    <strong>{stats.total} issue{stats.total !== 1 ? "s" : ""}</strong>{" "}
-                    found across {chunks.length} chunk{chunks.length !== 1 ? "s" : ""}
-                  </motion.div>
+                    Complete
+                  </motion.span>
+                )}
+                {isReviewing && (
+                  <motion.span
+                    animate={{ opacity: [1, 0.4, 1] }}
+                    transition={{ duration: 1.2, repeat: Infinity }}
+                    className="text-xs font-mono text-yellow-400 bg-yellow-400/10 border border-yellow-400/20 px-2 py-0.5 rounded"
+                  >
+                    Streaming...
+                  </motion.span>
                 )}
               </AnimatePresence>
+            </div>
 
-              {/* Chunk cards (live as they arrive) */}
-              <div className="space-y-4">
-                {chunks.map((chunk, i) => (
-                  <ChunkCard key={chunk.chunk_index} chunk={chunk} chunkNumber={i + 1} />
-                ))}
-              </div>
-
-              {/* Streaming skeleton for remaining chunks */}
-              {isReviewing && (
-                <ReviewingSkeleton chunksReceived={chunks.length} totalChunks={totalChunks} />
-              )}
-
-              {/* Error state */}
-              {status === "error" && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="flex flex-col items-center justify-center py-12 border border-red-500/20 rounded-2xl bg-red-500/5 text-center"
-                >
-                  <div className="w-12 h-12 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-4">
-                    <Zap size={20} className="text-red-400" />
-                  </div>
-                  <p className="font-display font-bold text-red-400 mb-2">Review Failed</p>
-                  <p className="text-sm font-mono text-zinc-500 max-w-sm">{errorMsg}</p>
+            {/* Stats */}
+            <AnimatePresence>
+              {isDone && stats.total > 0 && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-1.5">
+                  {stats.critical > 0 && (
+                    <span className="flex items-center gap-1 text-xs font-mono text-red-400 bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded">
+                      <Zap size={9} fill="currentColor" />{stats.critical}
+                    </span>
+                  )}
+                  {stats.warning > 0 && (
+                    <span className="flex items-center gap-1 text-xs font-mono text-yellow-400 bg-yellow-400/10 border border-yellow-400/20 px-2 py-0.5 rounded">
+                      <AlertTriangle size={9} />{stats.warning}
+                    </span>
+                  )}
+                  {stats.suggestion > 0 && (
+                    <span className="flex items-center gap-1 text-xs font-mono text-sky-400 bg-sky-400/10 border border-sky-400/20 px-2 py-0.5 rounded">
+                      <Lightbulb size={9} />{stats.suggestion}
+                    </span>
+                  )}
                 </motion.div>
               )}
+            </AnimatePresence>
+          </div>
 
-              {/* Scroll anchor */}
-              <div ref={bottomRef} />
-            </motion.div>
-          )}
-        </AnimatePresence>
+          {/* Results body */}
+          <div className="flex-1 p-5 flex flex-col gap-4">
 
-        {/* Empty state CTA */}
-        {status === "idle" && !hasResults && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.4 }}
-            className="flex flex-col items-center gap-3 py-8 text-center"
-          >
-            <div className="flex items-center gap-6 text-zinc-700">
-              {[
-                { icon: FileCode, label: "Any language" },
-                { icon: Zap,      label: "Instant results" },
-                { icon: Terminal, label: "Streaming output" },
-              ].map(({ icon: Icon, label }) => (
-                <div key={label} className="flex flex-col items-center gap-2">
-                  <div className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center">
-                    <Icon size={16} className="text-zinc-600" />
-                  </div>
-                  <span className="text-xs font-mono text-zinc-700">{label}</span>
+            {/* Idle empty state */}
+            {status === "idle" && !hasResults && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.3 }}
+                className="flex-1 flex flex-col items-center justify-center min-h-96 gap-5 border border-dashed border-white/5 rounded-2xl"
+              >
+                <div className="w-14 h-14 rounded-2xl bg-zinc-900 border border-white/5 flex items-center justify-center">
+                  <Terminal size={24} className="text-zinc-700" />
                 </div>
-              ))}
-            </div>
-          </motion.div>
-        )}
+                <div className="text-center">
+                  <p className="font-display font-semibold text-zinc-600 mb-1.5">Awaiting review</p>
+                  <p className="font-mono text-xs text-zinc-700">Paste code on the left and hit Run Review</p>
+                </div>
+                <div className="flex items-center gap-6">
+                  {[
+                    { icon: FileCode,  label: "Any language", cls: "text-green-400/50" },
+                    { icon: Zap,       label: "Security scan", cls: "text-red-400/50"   },
+                    { icon: Lightbulb, label: "Best practices", cls: "text-sky-400/50"  },
+                  ].map(({ icon: Icon, label, cls }) => (
+                    <div key={label} className="flex flex-col items-center gap-2">
+                      <div className="w-9 h-9 rounded-xl bg-zinc-900 border border-white/5 flex items-center justify-center">
+                        <Icon size={15} className={cls} />
+                      </div>
+                      <span className="font-mono text-xs text-zinc-700">{label}</span>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
+            {/* Completion banner */}
+            <AnimatePresence>
+              {isDone && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={`flex items-center gap-2.5 px-4 py-3 rounded-xl text-sm font-mono ${bannerCls}`}
+                >
+                  <CheckCircle2 size={14} />
+                  Review complete · <strong>{stats.total} issue{stats.total !== 1 ? "s" : ""}</strong> across {chunks.length} chunk{chunks.length !== 1 ? "s" : ""}
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Chunk cards */}
+            {chunks.map((chunk, i) => (
+              <ChunkCard key={chunk.chunk_index} chunk={chunk} chunkNumber={i + 1} />
+            ))}
+
+            {/* Skeleton */}
+            {isReviewing && (
+              <ReviewingSkeleton chunksReceived={chunks.length} totalChunks={totalChunks} />
+            )}
+
+            {/* Error */}
+            {status === "error" && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="flex flex-col items-center justify-center py-12 border border-red-500/20 rounded-2xl bg-red-500/10 text-center"
+              >
+                <div className="w-11 h-11 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-3">
+                  <Zap size={18} className="text-red-400" />
+                </div>
+                <p className="font-display font-bold text-red-400 mb-1.5">Review Failed</p>
+                <p className="text-xs font-mono text-zinc-500 max-w-xs">{errorMsg}</p>
+              </motion.div>
+            )}
+
+            <div ref={bottomRef} />
+          </div>
+        </motion.div>
       </main>
     </div>
   );

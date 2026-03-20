@@ -1,114 +1,88 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
-import { Eye, EyeOff, Terminal, Loader2, ArrowRight } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Eye, EyeOff, Terminal, Loader2, ArrowRight, CheckCircle, XCircle, ShieldCheck } from "lucide-react";
 import { registerUser } from "../api/auth";
-import useAuthStore from "../store/authStore";
 import { useToast } from "../components/Toast";
 
 export const RegisterPage = () => {
   const navigate = useNavigate();
   const toast    = useToast();
-  const setAuth  = useAuthStore((s) => s.setAuth);
 
-  const [form,     setForm]     = useState({ email: "", username: "", password: "" });
-  const [showPass, setShowPass] = useState(false);
-  const [loading,  setLoading]  = useState(false);
-  const [focused,  setFocused]  = useState(null);
+  const [form,           setForm]           = useState({ email: "", username: "", password: "", confirm_password: "" });
+  const [showPass,       setShowPass]       = useState(false);
+  const [showConfirm,    setShowConfirm]    = useState(false);
+  const [loading,        setLoading]        = useState(false);
+  const [focused,        setFocused]        = useState(null);
+  const [confirmTouched, setConfirmTouched] = useState(false);
+
+  const passwordsMatch = form.password === form.confirm_password;
+  const showMatch      = confirmTouched && form.confirm_password.length > 0;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (loading) return;
+    if (!passwordsMatch) { toast("Passwords do not match.", "error"); return; }
     setLoading(true);
     try {
-      const data = await registerUser(form);
-      toast("Account created! Redirecting...", "success");
-      setAuth(data.access_token, { email: form.email, username: form.username });
-      setTimeout(() => navigate("/"), 3000);
+      await registerUser(form);
+      toast("Account created! Please sign in.", "success");
+      setTimeout(() => navigate("/login"), 2500);
     } catch (err) {
       toast(err.response?.data?.detail || "Registration failed. Try again.", "error");
       setLoading(false);
     }
   };
 
-  const handleSignInClick = () => {
+  const handleSignIn = () => {
     toast("Taking you to sign in...", "info", 2000);
     setTimeout(() => navigate("/login"), 800);
   };
 
-  const inputStyle = (field) => ({
-    width: "100%",
-    background: focused === field ? "rgba(20,24,28,0.80)" : "rgba(20,24,28,0.40)",
-    border: `1px solid ${focused === field ? "rgba(74,222,128,0.55)" : "rgba(255,255,255,0.08)"}`,
-    borderRadius: "10px",
-    padding: "10px 16px",
-    fontSize: "13px",
-    fontFamily: "'JetBrains Mono', monospace",
-    color: focused === field ? "#e2e8f0" : "#71717a",
-    outline: "none",
-    backdropFilter: "blur(8px)",
-    boxShadow: focused === field ? "0 0 18px rgba(74,222,128,0.12)" : "none",
-    transition: "all 0.25s ease",
-  });
+  const inputCls = (field) => {
+    const isConfirm   = field === "confirm_password";
+    const hasMismatch = isConfirm && showMatch && !passwordsMatch;
+    const hasMatch    = isConfirm && showMatch && passwordsMatch;
+    const isFocused   = focused === field;
+
+    if (hasMismatch) return "w-full rounded-xl px-4 py-2.5 text-sm font-mono outline-none transition-all duration-200 bg-zinc-900/70 border border-red-500/50 text-zinc-100 shadow-[0_0_14px_rgba(239,68,68,0.1)]";
+    if (hasMatch)    return "w-full rounded-xl px-4 py-2.5 text-sm font-mono outline-none transition-all duration-200 bg-zinc-900/70 border border-green-500/50 text-zinc-100 shadow-[0_0_14px_rgba(74,222,128,0.1)]";
+    if (isFocused)   return "w-full rounded-xl px-4 py-2.5 text-sm font-mono outline-none transition-all duration-200 bg-zinc-900/80 border border-green-500/50 text-zinc-100 shadow-[0_0_16px_rgba(74,222,128,0.12)]";
+    return "w-full rounded-xl px-4 py-2.5 text-sm font-mono outline-none transition-all duration-200 bg-zinc-900/50 border border-white/10 text-zinc-400 hover:border-white/20 hover:bg-zinc-900/60";
+  };
 
   return (
-    <div style={{
-      minHeight: "100vh",
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      justifyContent: "center",
-      padding: "24px 16px",
-      position: "relative",
-    }}>
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 relative">
       <div className="bg-grid-anim" />
       <div className="orb orb-green" />
       <div className="orb orb-blue" />
 
-      {/* Outer wrapper — 50% width */}
       <motion.div
         initial={{ opacity: 0, y: 28 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.55, ease: [0.22, 0.68, 0, 1.2] }}
-        style={{
-          position: "relative",
-          zIndex: 10,
-          width: "50%",
-          minWidth: "380px",
-          // maxWidth: "520px",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-        }}
+        className="relative z-10 w-full max-w-lg flex flex-col items-center"
       >
-
-        {/* Logo + Name */}
+        {/* Logo */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.05 }}
-          style={{ display: "flex", alignItems: "center", gap: "14px", marginBottom: "14px" }}
+          className="flex items-center gap-3 mb-4"
         >
-          <div style={{
-            width: 52, height: 52, borderRadius: 16, flexShrink: 0,
-            background: "rgba(74,222,128,0.08)",
-            border: "1px solid rgba(74,222,128,0.25)",
-            boxShadow: "0 0 28px rgba(74,222,128,0.2)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-          }}>
-            <Terminal size={28} color="#4ade80" />
+          <div className="w-12 h-12 rounded-2xl bg-green-400/10 border border-green-400/20 flex items-center justify-center shadow-[0_0_24px_rgba(74,222,128,0.2)]">
+            <Terminal size={26} className="text-green-400" />
           </div>
-          <span style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800, fontSize: "2rem", color: "#fff", lineHeight: 1, letterSpacing: "-0.02em" }}>
-            Code<span style={{ color: "#4ade80" }}>Scan</span>
+          <span className="font-display font-extrabold text-4xl text-white tracking-tight">
+            Code<span className="text-green-400">Scan</span>
           </span>
         </motion.div>
 
-        {/* Subtitle */}
         <motion.p
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.12 }}
-          style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "12px", color: "#52525b", marginBottom: "32px", textAlign: "center" }}
+          className="font-mono text-xs text-zinc-600 mb-8 text-center"
         >
           Create your account to get started
         </motion.p>
@@ -117,120 +91,102 @@ export const RegisterPage = () => {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.22, ease: [0.22, 0.68, 0, 1.2] }}
-          style={{
-            width: "100%",
-            background: "rgba(9,11,14,0.88)",
-            backdropFilter: "blur(24px)",
-            border: "1px solid rgba(255,255,255,0.06)",
-            borderRadius: "20px",
-            padding: "36px 32px",
-            boxShadow: "0 32px 64px rgba(0,0,0,0.6)",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-          }}
+          transition={{ delay: 0.2, ease: [0.22, 0.68, 0, 1.2] }}
+          className="w-full bg-zinc-950/90 backdrop-blur-2xl border border-white/5 rounded-2xl p-8 shadow-2xl"
         >
-
-          {/* Card heading */}
-          <div style={{ textAlign: "center", marginBottom: "28px", width: "100%" }}>
-            <h2 style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: "1.2rem", color: "#fff", marginBottom: "6px" }}>
-              Create account
-            </h2>
-            <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "11px", color: "#3f3f46" }}>
-              Get started with CodeScan for free
-            </p>
+          <div className="text-center mb-7">
+            <h2 className="font-display font-bold text-xl text-white mb-1.5">Create account</h2>
+            <p className="font-mono text-xs text-zinc-700">Get started with CodeScan for free</p>
           </div>
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} style={{ width: "100%" }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginBottom: "28px" }}>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            {/* Username */}
+            <div className="flex items-center gap-4">
+              <span className="font-mono text-xs text-zinc-500 w-16 text-right shrink-0">Username</span>
+              <input type="text" placeholder="your_handle" value={form.username}
+                onChange={(e) => setForm({ ...form, username: e.target.value })}
+                onFocus={() => setFocused("username")} onBlur={() => setFocused(null)}
+                required className={`${inputCls("username")} flex-1`} />
+            </div>
 
-              {/* Username */}
-              <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-                <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "12px", color: "#71717a", width: "68px", flexShrink: 0, textAlign: "right" }}>
-                  Username
-                </span>
-                <input
-                  type="text"
-                  placeholder="your_handle"
-                  value={form.username}
-                  onChange={(e) => setForm({ ...form, username: e.target.value })}
-                  onFocus={() => setFocused("username")}
-                  onBlur={() => setFocused(null)}
-                  required
-                  style={{ ...inputStyle("username"), flex: 1 }}
-                />
-              </div>
+            {/* Email */}
+            <div className="flex items-center gap-4">
+              <span className="font-mono text-xs text-zinc-500 w-16 text-right shrink-0">Email</span>
+              <input type="email" placeholder="you@example.com" value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                onFocus={() => setFocused("email")} onBlur={() => setFocused(null)}
+                required className={`${inputCls("email")} flex-1`} />
+            </div>
 
-              {/* Email */}
-              <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-                <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "12px", color: "#71717a", width: "68px", flexShrink: 0, textAlign: "right" }}>
-                  Email
-                </span>
-                <input
-                  type="email"
-                  placeholder="you@example.com"
-                  value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  onFocus={() => setFocused("email")}
-                  onBlur={() => setFocused(null)}
-                  required
-                  style={{ ...inputStyle("email"), flex: 1 }}
-                />
-              </div>
-
-              {/* Password */}
-              <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-                <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "12px", color: "#71717a", width: "68px", flexShrink: 0, textAlign: "right" }}>
-                  Password
-                </span>
-                <div style={{ flex: 1, position: "relative" }}>
-                  <input
-                    type={showPass ? "text" : "password"}
-                    placeholder="••••••••"
-                    value={form.password}
-                    onChange={(e) => setForm({ ...form, password: e.target.value })}
-                    onFocus={() => setFocused("password")}
-                    onBlur={() => setFocused(null)}
-                    required
-                    style={{ ...inputStyle("password"), width: "100%", paddingRight: "40px" }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPass(!showPass)}
-                    style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#52525b", padding: 0, display: "flex", alignItems: "center" }}
-                  >
-                    {showPass ? <EyeOff size={14} color="#52525b" /> : <Eye size={14} color="#52525b" />}
-                  </button>
-                </div>
+            {/* Password */}
+            <div className="flex items-center gap-4">
+              <span className="font-mono text-xs text-zinc-500 w-16 text-right shrink-0">Password</span>
+              <div className="relative flex-1">
+                <input type={showPass ? "text" : "password"} placeholder="••••••••" value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  onFocus={() => setFocused("password")} onBlur={() => setFocused(null)}
+                  required className={`${inputCls("password")} w-full pr-10`} />
+                <button type="button" onClick={() => setShowPass(!showPass)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-zinc-300 transition-colors">
+                  {showPass ? <EyeOff size={14} /> : <Eye size={14} />}
+                </button>
               </div>
             </div>
 
-            {/* Submit button */}
-            <div style={{ display: "flex", justifyContent: "center" }}>
+            {/* Confirm password */}
+            <div className="flex items-center gap-4">
+              <span className="font-mono text-xs text-zinc-500 w-16 text-right shrink-0">Confirm</span>
+              <div className="relative flex-1">
+                <input type={showConfirm ? "text" : "password"} placeholder="••••••••" value={form.confirm_password}
+                  onChange={(e) => setForm({ ...form, confirm_password: e.target.value })}
+                  onFocus={() => setFocused("confirm_password")}
+                  onBlur={() => { setFocused(null); setConfirmTouched(true); }}
+                  required className={`${inputCls("confirm_password")} w-full pr-16`} />
+                {/* Match icon */}
+                <AnimatePresence>
+                  {showMatch && (
+                    <motion.span
+                      initial={{ opacity: 0, scale: 0.6 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.6 }}
+                      className="absolute right-9 top-1/2 -translate-y-1/2"
+                    >
+                      {passwordsMatch
+                        ? <CheckCircle size={13} className="text-green-400" />
+                        : <XCircle    size={13} className="text-red-400" />
+                      }
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+                <button type="button" onClick={() => setShowConfirm(!showConfirm)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-zinc-300 transition-colors">
+                  {showConfirm ? <EyeOff size={14} /> : <Eye size={14} />}
+                </button>
+              </div>
+            </div>
+
+            {/* Match message */}
+            <AnimatePresence>
+              {showMatch && (
+                <motion.p
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className={`text-xs font-mono pl-20 ${passwordsMatch ? "text-green-400" : "text-red-400"}`}
+                >
+                  {passwordsMatch ? "✓ Passwords match" : "✕ Passwords do not match"}
+                </motion.p>
+              )}
+            </AnimatePresence>
+
+            {/* Submit */}
+            <div className="flex justify-center mt-2">
               <motion.button
                 type="submit"
-                disabled={loading}
-                whileHover={!loading ? { scale: 1.05, boxShadow: "0 0 32px rgba(74,222,128,0.5)" } : {}}
-                whileTap={!loading ? { scale: 0.96 } : {}}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  background: loading ? "rgba(74,222,128,0.55)" : "#4ade80",
-                  color: "#071207",
-                  fontFamily: "'Syne', sans-serif",
-                  fontWeight: 700,
-                  fontSize: "14px",
-                  border: "none",
-                  borderRadius: "12px",
-                  padding: "11px 36px",
-                  cursor: loading ? "not-allowed" : "pointer",
-                  boxShadow: "0 0 20px rgba(74,222,128,0.3)",
-                  letterSpacing: "0.01em",
-                  transition: "background 0.2s",
-                }}
+                disabled={loading || (showMatch && !passwordsMatch)}
+                whileHover={!loading && passwordsMatch ? { scale: 1.05 } : {}}
+                whileTap={!loading && passwordsMatch ? { scale: 0.96 } : {}}
+                className="flex items-center gap-2 bg-green-400 text-zinc-950 font-display font-bold text-sm px-8 py-2.5 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150 hover:bg-green-300 shadow-[0_0_20px_rgba(74,222,128,0.3)] hover:shadow-[0_0_28px_rgba(74,222,128,0.5)]"
               >
                 {loading
                   ? <><Loader2 size={15} className="animate-spin" />Creating...</>
@@ -240,36 +196,32 @@ export const RegisterPage = () => {
             </div>
           </form>
 
-          {/* Divider */}
-          <div style={{ display: "flex", alignItems: "center", gap: "12px", width: "100%", margin: "24px 0" }}>
-            <div style={{ flex: 1, height: "1px", background: "rgba(255,255,255,0.05)" }} />
-            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "11px", color: "#3f3f46" }}>or</span>
-            <div style={{ flex: 1, height: "1px", background: "rgba(255,255,255,0.05)" }} />
+          <div className="flex items-center gap-3 my-6">
+            <div className="flex-1 h-px bg-white/5" />
+            <span className="font-mono text-xs text-zinc-700">or</span>
+            <div className="flex-1 h-px bg-white/5" />
           </div>
 
-          {/* Sign in link */}
-          <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "13px", color: "#52525b", textAlign: "center" }}>
+          <p className="text-center text-sm text-zinc-600 font-body">
             Already have an account?{" "}
             <span
-              onClick={handleSignInClick}
-              style={{ color: "#4ade80", cursor: "pointer", fontWeight: 600, textDecoration: "underline", textDecorationColor: "rgba(74,222,128,0.3)", textUnderlineOffset: "3px", transition: "color 0.15s" }}
-              onMouseEnter={(e) => (e.target.style.color = "#86efac")}
-              onMouseLeave={(e) => (e.target.style.color = "#4ade80")}
+              onClick={handleSignIn}
+              className="text-green-400 hover:text-green-300 cursor-pointer font-semibold underline underline-offset-4 decoration-green-400/30 hover:decoration-green-300/60 transition-colors duration-150"
             >
               Sign in
             </span>
           </p>
         </motion.div>
 
-        {/* Footer */}
-        <motion.p
+        <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.4 }}
-          style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "11px", color: "#3f3f46", marginTop: "20px", textAlign: "center" }}
+          className="flex items-center gap-1.5 mt-5 text-xs font-mono text-zinc-700"
         >
+          <ShieldCheck size={11} className="text-green-400/30" />
           JWT secured · No code stored · Real-time streaming
-        </motion.p>
+        </motion.div>
       </motion.div>
     </div>
   );

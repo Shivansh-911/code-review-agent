@@ -12,18 +12,21 @@ const Protected = ({ children }) => {
 
 const Public = ({ children }) => {
   const token = useAuthStore((s) => s.token);
-  return !token ? children : <Navigate to="/" replace />;
+  return !token ? children : <Navigate to="/dashboard" replace />;
 };
 
 export default function App() {
   return (
     <ToastProvider>
-      <BrowserRouter>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <Routes>
-          <Route path="/login"    element={<Public><LoginPage /></Public>} />
-          <Route path="/register" element={<Public><RegisterPage /></Public>} />
-          <Route path="/"         element={<Protected><DashboardPage /></Protected>} />
-          <Route path="*"         element={<Navigate to="/login" replace />} />
+          {/* Landing page — login */}
+          <Route path="/"          element={<Navigate to="/login" replace />} />
+          <Route path="/login"     element={<Public><LoginPage /></Public>} />
+          <Route path="/register"  element={<Public><RegisterPage /></Public>} />
+          <Route path="/dashboard" element={<Protected><DashboardPage /></Protected>} />
+          {/* Any unknown route → login */}
+          <Route path="*"          element={<Navigate to="/login" replace />} />
         </Routes>
       </BrowserRouter>
     </ToastProvider>

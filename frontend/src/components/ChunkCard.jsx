@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { FileCode, CheckCircle } from "lucide-react";
 import { IssueCard } from "./IssueCard";
+import { SEVERITY } from "./SeverityBadge";
 
 export const ChunkCard = ({ chunk, chunkNumber }) => {
   const criticals   = chunk.issues.filter((i) => i.severity === "critical").length;
@@ -10,39 +11,39 @@ export const ChunkCard = ({ chunk, chunkNumber }) => {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.45, ease: [0.22, 0.68, 0, 1.2] }}
-      className="border border-white/5 rounded-2xl overflow-hidden bg-zinc-950/80 backdrop-blur-sm"
+      transition={{ duration: 0.4, ease: [0.22, 0.68, 0, 1.2] }}
+      className="border border-white/5 rounded-2xl overflow-hidden bg-zinc-950/80"
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-5 py-3.5 bg-zinc-900/70 border-b border-white/5">
-        <div className="flex items-center gap-3">
-          <div className="w-7 h-7 rounded-lg bg-zinc-800 border border-zinc-700 flex items-center justify-center">
+      <div className="flex items-center justify-between px-4 py-3 bg-zinc-900/80 border-b border-white/5 flex-wrap gap-2">
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg bg-green-400/10 border border-green-400/20 flex items-center justify-center">
             <FileCode size={13} className="text-green-400" />
           </div>
-          <span className="font-display font-semibold text-sm text-white">
+          <span className="font-display font-semibold text-sm text-zinc-100">
             Chunk {chunkNumber}
           </span>
-          <span className="text-xs font-mono text-zinc-500 bg-zinc-800 px-2 py-0.5 rounded border border-zinc-700">
+          <span className="text-xs font-mono text-zinc-600 bg-zinc-800 border border-zinc-700/50 px-2 py-0.5 rounded">
             {chunk.language}
           </span>
         </div>
 
-        {/* Severity counts */}
-        <div className="flex items-center gap-2 flex-wrap justify-end">
+        {/* Severity counts — full class strings, not dynamic */}
+        <div className="flex items-center gap-1.5 flex-wrap">
           {criticals > 0 && (
-            <span className="text-xs font-mono text-red-400 bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded">
+            <span className={`text-xs font-mono px-2 py-0.5 rounded ${SEVERITY.critical.countBadge}`}>
               {criticals} critical
             </span>
           )}
           {warnings > 0 && (
-            <span className="text-xs font-mono text-yellow-400 bg-yellow-400/10 border border-yellow-400/20 px-2 py-0.5 rounded">
+            <span className={`text-xs font-mono px-2 py-0.5 rounded ${SEVERITY.warning.countBadge}`}>
               {warnings} warning
             </span>
           )}
           {suggestions > 0 && (
-            <span className="text-xs font-mono text-sky-400 bg-sky-400/10 border border-sky-400/20 px-2 py-0.5 rounded">
+            <span className={`text-xs font-mono px-2 py-0.5 rounded ${SEVERITY.suggestion.countBadge}`}>
               {suggestions} suggestion
             </span>
           )}
@@ -55,11 +56,11 @@ export const ChunkCard = ({ chunk, chunkNumber }) => {
       </div>
 
       {/* Issues */}
-      <div className="p-4 space-y-2.5">
+      <div className="p-3 flex flex-col gap-2">
         {isClean ? (
-          <div className="flex items-center gap-2 text-sm text-zinc-500 py-2 px-1">
+          <div className="flex items-center gap-2 py-2 px-1">
             <CheckCircle size={13} className="text-green-400" />
-            No issues found in this chunk
+            <span className="text-xs font-mono text-zinc-600">No issues found in this chunk</span>
           </div>
         ) : (
           chunk.issues.map((issue, i) => <IssueCard key={i} issue={issue} index={i} />)
@@ -67,9 +68,9 @@ export const ChunkCard = ({ chunk, chunkNumber }) => {
       </div>
 
       {/* Summary */}
-      <div className="px-5 py-3 bg-zinc-900/40 border-t border-white/5">
-        <p className="text-xs font-mono text-zinc-500 leading-relaxed">
-          <span className="text-green-500/60 mr-1.5">▸</span>
+      <div className="px-4 py-2.5 bg-zinc-900/40 border-t border-white/5">
+        <p className="text-xs font-mono text-zinc-600 leading-relaxed">
+          <span className="text-green-400/40 mr-1.5">▸</span>
           {chunk.summary}
         </p>
       </div>
